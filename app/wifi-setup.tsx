@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import WifiManager from "react-native-wifi-reborn";
 import { useWiFi, WiFiNetwork } from "@/hooks/useWifi";
 import { isValidPassword, isValidSSID } from "@/lib/device";
 import { deviceApi } from "@/lib/tasmota";
@@ -30,11 +31,27 @@ export default function WiFiSetupScreen() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [configurationSent, setConfigurationSent] = useState(false);
 
-  useEffect(() => {
-    // Auto-scan networks on mount
-    handleScanNetworks();
-  }, []);
+  const initializeWiFiSetup = async () => {
+    try {
+      // Check if we're already connected to the device hotspot
+      const currentSSID = await WifiManager.getCurrentWifiSSID();
+      if (currentSSID === deviceId) {
+        console.log("Already connected to device hotspot");
+      } else {
+        Alert.alert(
+          "Connect to Device WiFi",
+          `Please connect to the WiFi network "${deviceId}" to configure your device.`,
+          [{ text: "OK" }],
+        );
+      }
+
+      await handleScanNetworks();
+    } catch (error) {
+      console.error("Failed to initialize WiFi setup:", error);
+    }
+  };
 
   const handleScanNetworks = async () => {
     try {
@@ -55,10 +72,28 @@ export default function WiFiSetupScreen() {
     setSelectedNetwork(null);
   };
 
-  const handleConnectDevice = async () => {
-    const ssid = selectedNetwork?.SSID || manualSSID;
+  const verifyDeviceConnection = async (): Promise<boolean> => {
+    try {
+      const currentSSID = await WifiManager.getCurrentWifiSSID();
+      if (!currentSSID?.includes(deviceId || "")) {
+        Alert.alert(
+          "Wrong Network",
+          `Please connect to the device WiFi network that starts with "${deviceId}" first.`,
+          [{ text: "OK" }],
+        );
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error("Failed to verify device connection:", error);
+      return false;
+    }
+  };
 
-    if (!ssid || !isValidSSID(ssid)) {
+  const handleConnectDevice = async () => {
+    const homeWifiSSID = selectedNetwork?.SSID || manualSSID;
+
+    if (!homeWifiSSID || !isValidSSID(homeWifiSSID)) {
       Alert.alert("Error", "Please select a network or enter a valid SSID");
       return;
     }
@@ -68,18 +103,26 @@ export default function WiFiSetupScreen() {
       return;
     }
 
+    // Verify we're connected to the device hotspot (hardware WiFi)
+    const isConnectedToDevice = await verifyDeviceConnection();
+    if (!isConnectedToDevice) {
+      return;
+    }
+
     setIsConnecting(true);
     try {
-      const result = await deviceApi.connectToWiFi(ssid, password);
+      // Send the HOME WiFi credentials to the device while connected to device hotspot
+      const result = await deviceApi.connectToWiFi(homeWifiSSID, password);
 
       if (result.success) {
+        setConfigurationSent(true);
         Alert.alert(
           "WiFi Configuration Sent",
-          `The device will now attempt to connect to "${ssid}". This may take a few minutes.`,
+          `The device will now attempt to connect to "${homeWifiSSID}". Please connect your phone to "${homeWifiSSID}" to complete device registration.`,
           [
             {
-              text: "Register Device",
-              onPress: handleRegisterDevice,
+              text: "Switch to Home WiFi",
+              onPress: () => switchToHomeWiFi(homeWifiSSID),
             },
           ],
         );
@@ -93,10 +136,92 @@ export default function WiFiSetupScreen() {
     }
   };
 
+  const switchToHomeWiFi = async (targetSSID: string) => {
+    try {
+      // Attempt to connect to the selected home WiFi network
+      await WifiManager.connectToProtectedSSID(
+        targetSSID,
+        password,
+        false,
+        false,
+      );
+
+      // Give some time for connection to establish
+      setTimeout(() => {
+        verifyHomeWiFiConnection(targetSSID);
+      }, 3000);
+    } catch (error) {
+      console.error("Failed to switch to home WiFi:", error);
+      Alert.alert(
+        "Manual Connection Required",
+        `Please manually connect to "${targetSSID}" network and then tap "Register Device" below.`,
+      );
+    }
+  };
+
+  const verifyHomeWiFiConnection = async (expectedSSID: string) => {
+    try {
+      const currentSSID = await WifiManager.getCurrentWifiSSID();
+      if (currentSSID === expectedSSID) {
+        Alert.alert(
+          "Connected Successfully",
+          `You are now connected to "${expectedSSID}". You can proceed with device registration.`,
+          [
+            {
+              text: "Register Device",
+              onPress: handleRegisterDevice,
+            },
+          ],
+        );
+      } else {
+        Alert.alert(
+          "Connection Verification",
+          `Please ensure you are connected to "${expectedSSID}" network before registering the device.`,
+        );
+      }
+    } catch (error) {
+      console.error("Failed to verify home WiFi connection:", error);
+    }
+  };
+
+  const checkCurrentWiFiForRegistration = async (): Promise<boolean> => {
+    try {
+      const currentSSID = await WifiManager.getCurrentWifiSSID();
+      const homeWifiSSID = selectedNetwork?.SSID || manualSSID;
+
+      if (currentSSID !== homeWifiSSID) {
+        Alert.alert(
+          "Wrong Network",
+          `Please connect to "${homeWifiSSID}" network to register the device with the server.`,
+          [
+            {
+              text: "Try Again",
+              onPress: () => checkCurrentWiFiForRegistration(),
+            },
+            { text: "Cancel" },
+          ],
+        );
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error("Failed to check current WiFi:", error);
+      return false;
+    }
+  };
+
   const handleRegisterDevice = async () => {
     if (!deviceId) {
       Alert.alert("Error", "Device ID not found");
       return;
+    }
+
+    // If configuration was sent, verify we're on the right network
+    if (configurationSent) {
+      const isOnCorrectNetwork = await checkCurrentWiFiForRegistration();
+      if (!isOnCorrectNetwork) {
+        return;
+      }
     }
 
     setIsRegistering(true);
@@ -128,11 +253,19 @@ export default function WiFiSetupScreen() {
         Alert.alert("Error", result.message || "Failed to register device");
       }
     } catch (error) {
-      Alert.alert("Error", "Failed to register device with server");
+      Alert.alert(
+        "Registration Failed",
+        "Failed to register device with server. Please ensure you're connected to your home WiFi network.",
+      );
     } finally {
       setIsRegistering(false);
     }
   };
+
+  useEffect(() => {
+    // Check initial connection and auto-scan networks on mount
+    void initializeWiFiSetup();
+  }, []);
 
   const renderNetworkItem = ({ item }: { item: WiFiNetwork }) => (
     <TouchableOpacity
@@ -161,83 +294,95 @@ export default function WiFiSetupScreen() {
           <Text style={styles.headerTitle}>WiFi Setup</Text>
           <Text style={styles.headerSubtitle}>Device ID: {deviceId}</Text>
           <Text style={styles.headerDescription}>
-            Connect your device to your home WiFi network
+            {configurationSent
+              ? "Configuration sent! Connect to your home WiFi to complete setup."
+              : "Connect your device to your home WiFi network"}
           </Text>
         </View>
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Available Networks</Text>
-            <TouchableOpacity
-              style={styles.scanButton}
-              onPress={handleScanNetworks}
-              disabled={isScanning}>
-              <Text style={styles.scanButtonText}>
-                {isScanning ? "Scanning..." : "Refresh"}
-              </Text>
-            </TouchableOpacity>
-          </View>
+        {!configurationSent && (
+          <>
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Available Networks</Text>
+                <TouchableOpacity
+                  style={styles.scanButton}
+                  onPress={handleScanNetworks}
+                  disabled={isScanning}>
+                  <Text style={styles.scanButtonText}>
+                    {isScanning ? "Scanning..." : "Refresh"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
-          <FlatList
-            data={networks.filter((n) => n.SSID && n.SSID.trim() !== "")}
-            renderItem={renderNetworkItem}
-            keyExtractor={(item) => item.BSSID}
-            style={styles.networkList}
-            scrollEnabled={false}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>
-                {isScanning ? "Scanning for networks..." : "No networks found"}
-              </Text>
-            }
-          />
+              <FlatList
+                data={networks.filter((n) => n.SSID && n.SSID.trim() !== "")}
+                renderItem={renderNetworkItem}
+                keyExtractor={(item) => item.BSSID}
+                style={styles.networkList}
+                scrollEnabled={false}
+                ListEmptyComponent={
+                  <Text style={styles.emptyText}>
+                    {isScanning
+                      ? "Scanning for networks..."
+                      : "No networks found"}
+                  </Text>
+                }
+              />
 
-          <TouchableOpacity
-            style={styles.manualButton}
-            onPress={handleManualEntry}>
-            <Text style={styles.manualButtonText}>Enter Network Manually</Text>
-          </TouchableOpacity>
-        </View>
+              <TouchableOpacity
+                style={styles.manualButton}
+                onPress={handleManualEntry}>
+                <Text style={styles.manualButtonText}>
+                  Enter Network Manually
+                </Text>
+              </TouchableOpacity>
+            </View>
 
-        {showManualEntry && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Manual Network Entry</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="WiFi Network Name (SSID)"
-              value={manualSSID}
-              onChangeText={setManualSSID}
-              maxLength={32}
-            />
-          </View>
-        )}
+            {showManualEntry && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Manual Network Entry</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="WiFi Network Name (SSID)"
+                  value={manualSSID}
+                  onChangeText={setManualSSID}
+                  maxLength={32}
+                />
+              </View>
+            )}
 
-        {(selectedNetwork || showManualEntry) && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>WiFi Password</Text>
-            <Text style={styles.selectedNetworkText}>
-              Network: {selectedNetwork?.SSID || manualSSID}
-            </Text>
+            {(selectedNetwork || showManualEntry) && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>WiFi Password</Text>
+                <Text style={styles.selectedNetworkText}>
+                  Network: {selectedNetwork?.SSID || manualSSID}
+                </Text>
 
-            <PasswordInput
-              style={styles.input}
-              placeholder="Enter WiFi password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              maxLength={63}
-            />
+                <PasswordInput
+                  style={styles.input}
+                  placeholder="Enter WiFi password"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  maxLength={63}
+                />
 
-            <TouchableOpacity
-              style={[styles.button, styles.connectButton]}
-              onPress={handleConnectDevice}
-              disabled={isConnecting || isRegistering}>
-              {isConnecting ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <Text style={styles.buttonText}>Connect Device to WiFi</Text>
-              )}
-            </TouchableOpacity>
-          </View>
+                <TouchableOpacity
+                  style={[styles.button, styles.connectButton]}
+                  onPress={handleConnectDevice}
+                  disabled={isConnecting || isRegistering}>
+                  {isConnecting ? (
+                    <ActivityIndicator size="small" color="white" />
+                  ) : (
+                    <Text style={styles.buttonText}>
+                      Connect Device to WiFi
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+          </>
         )}
 
         <View style={styles.registerSection}>
@@ -252,7 +397,9 @@ export default function WiFiSetupScreen() {
             )}
           </TouchableOpacity>
           <Text style={styles.registerNote}>
-            Skip WiFi setup and register device directly if already connected
+            {configurationSent
+              ? "Complete device registration after connecting to your home WiFi"
+              : "Skip WiFi setup and register device directly if already connected"}
           </Text>
         </View>
       </ScrollView>

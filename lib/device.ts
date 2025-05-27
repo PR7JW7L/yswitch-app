@@ -3,7 +3,7 @@ import { StorageKeys, storageService } from "./storage";
 export const generateDeviceId = (): string => {
   const timestamp = Date.now().toString(36);
   const randomStr = Math.random().toString(36).substring(2, 8);
-  return `device_${timestamp}_${randomStr}`;
+  return `device-${timestamp}-${randomStr}`;
 };
 
 export const saveDeviceConfiguration = (deviceId: string, config: any) => {

@@ -8,6 +8,7 @@ export const StorageKeys = {
   MQTT_CONFIG: "mqtt_config",
   WIFI_CREDENTIALS: "wifi_credentials",
   CONFIGURED_DEVICES: "configured_devices",
+  ACCESS_TOKEN: "accessToken",
 } as const;
 
 export const storageService = {

@@ -13,9 +13,8 @@ import { router, useLocalSearchParams } from "expo-router";
 import { generateDeviceId, saveDeviceConfiguration } from "@/lib/device";
 import { deviceApi } from "@/lib/tasmota";
 import { StorageKeys, storageService } from "@/lib/storage";
-import WifiManager from "react-native-wifi-reborn";
 
-function waitForDevice(timeout = 5_000) {
+function waitForDevice(timeout = 5_0) {
   return new Promise((resolve) => setTimeout(resolve, timeout));
 }
 
@@ -56,15 +55,16 @@ export default function ConfigureDeviceScreen() {
       // Step 1: Test device connection
       setConfigurationStep(0);
       const deviceInfo = await deviceApi.getDeviceInfo();
-      if (!deviceInfo.success) throw new Error("Cannot connect to device");
+      if (!deviceInfo.success || !deviceInfo.data) {
+        throw new Error("Cannot connect to device");
+      }
+      setDeviceId(deviceInfo.data.StatusNET.Hostname);
 
       // Step 2: Configure GPIO
       setConfigurationStep(1);
       const gpioResult = await deviceApi.configureGPIO();
       if (!gpioResult.success) throw new Error("GPIO configuration failed");
 
-      await waitForDevice();
-      await WifiManager.connectToProtectedSSID(ssid, "", false, false);
       await waitForDevice();
 
       // Step 3: Configure MQTT

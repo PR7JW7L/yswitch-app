@@ -4,6 +4,9 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+if (__DEV__) require("../ReactotronConfig");
+
 export default function RootLayout() {
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
@@ -47,6 +50,7 @@ export default function RootLayout() {
           name="device-control"
           options={{ title: "Device Control" }}
         />
+        <Stack.Screen name="login" options={{ headerShown: false }} />
       </Stack>
       <StatusBar style="light" />
     </ThemeProvider>

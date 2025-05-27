@@ -7,10 +7,10 @@ export interface MqttConfig {
   password: string;
 }
 
-export interface DeviceResponse {
+export interface DeviceResponse<T = any> {
   success: boolean;
   message?: string;
-  data?: any;
+  data?: T;
 }
 
 const DEVICE_IP = "http://192.168.4.1";
@@ -30,7 +30,7 @@ class DeviceApi {
   async configureGPIO(): Promise<DeviceResponse> {
     try {
       const response = await this.client.get<object>(
-        `/cm?cmnd=Backlog%20GPIO0%200;GPIO12%20288;GPIO15%20224;PwmRange%20255;Save;Restart%201`,
+        `/cm?cmnd=Backlog%20GPIO0%200;GPIO12%20288;GPIO15%20224;PwmRange%20255;Save`,
       );
       return { success: true, data: response.data };
     } catch (error) {
@@ -53,7 +53,7 @@ class DeviceApi {
 
       const response = await this.client.get("/cm", {
         params: {
-          cmnd: `Backlog MqttHost ${MQTTHOST};MqttPort ${MQTTPORT};MqttClient ${MQTTCLIENT};MqttUser ${MQTTUSER};MqttPassword ${MQTTPASSWORD};Topic ${MQTTTOPIC};FullTopic ${FULLTOPIC};Save;Restart 1`,
+          cmnd: `Backlog MqttHost ${MQTTHOST};MqttPort ${MQTTPORT};MqttClient ${MQTTCLIENT};MqttUser ${MQTTUSER};MqttPassword ${MQTTPASSWORD};Topic ${MQTTTOPIC};FullTopic ${FULLTOPIC};Save`,
         },
       });
       return { success: true, data: response.data };
@@ -72,15 +72,23 @@ class DeviceApi {
     }
   }
 
-  async getDeviceInfo(): Promise<DeviceResponse> {
+  async getDeviceInfo(): Promise<DeviceResponse<StatusResponse>> {
     try {
-      const response = await this.client.get("/cm?cmnd=Status");
+      const response = await this.client.get<StatusResponse>(
+        "/cm?cmnd=Status%200",
+      );
       return { success: true, data: response.data };
     } catch (error) {
       console.log(error);
       return { success: false, message: "Failed to get device info" };
     }
   }
+}
+
+export interface StatusResponse {
+  StatusNET: {
+    Hostname: string;
+  };
 }
 
 export const deviceApi = new DeviceApi();

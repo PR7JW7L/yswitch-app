@@ -14,8 +14,8 @@ import { StorageKeys, storageService } from "@/lib/storage";
 import { serverApi } from "@/lib/api";
 import { getConfiguredDevices } from "@/lib/device";
 
-export default function HomeScreen() {
-  const [serverUrl, setServerUrl] = useState("http://172.16.1.64:6969");
+function HomeScreenContent() {
+  const [serverUrl, setServerUrl] = useState("https://tasmota.stag.yarsa.dev/");
   const [isLoading, setIsLoading] = useState(false);
   const [configuredDevices, setConfiguredDevices] = useState<
     Record<string, any>
@@ -122,6 +122,20 @@ export default function HomeScreen() {
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+export default function HomeScreen() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const token = storageService.getString(StorageKeys.ACCESS_TOKEN);
+    if (!token) {
+      router.navigate("/login");
+    } else {
+      setReady(true);
+    }
+  }, []);
+  if (!ready) return null;
+  return <HomeScreenContent />;
 }
 
 const styles = StyleSheet.create({
