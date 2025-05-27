@@ -14,14 +14,16 @@ import {
 import { router, useLocalSearchParams } from "expo-router";
 import WifiManager from "react-native-wifi-reborn";
 import { useWiFi, WiFiNetwork } from "@/hooks/useWifi";
-import { isValidPassword, isValidSSID } from "@/lib/device";
-import { deviceApi } from "@/lib/tasmota";
-import { serverApi } from "@/lib/api";
+import { isValidPassword, isValidSSID } from "@/services/device-storage";
 import { StorageKeys, storageService } from "@/lib/storage";
 import { PasswordInput } from "@/components/PasswordInput";
+import { deviceSetupService } from "@/services/device-setup";
+import { deviceOperationsService } from "@/services/device-operations";
 
 export default function WiFiSetupScreen() {
-  const { deviceId } = useLocalSearchParams<{ deviceId: string }>();
+  const { deviceId = "device-mb0p2az6-29g3ky" } = useLocalSearchParams<{
+    deviceId: string;
+  }>();
   const { networks, isScanning, scanNetworks } = useWiFi();
   const [selectedNetwork, setSelectedNetwork] = useState<WiFiNetwork | null>(
     null,
@@ -112,7 +114,10 @@ export default function WiFiSetupScreen() {
     setIsConnecting(true);
     try {
       // Send the HOME WiFi credentials to the device while connected to device hotspot
-      const result = await deviceApi.connectToWiFi(homeWifiSSID, password);
+      const result = await deviceSetupService.configureWifi(
+        homeWifiSSID,
+        password,
+      );
 
       if (result.success) {
         setConfigurationSent(true);
@@ -226,8 +231,7 @@ export default function WiFiSetupScreen() {
 
     setIsRegistering(true);
     try {
-      const result = await serverApi.registerDevice(deviceId);
-
+      const result = await deviceOperationsService.registerDevice(deviceId);
       if (result.success) {
         storageService.setObject(StorageKeys.WIFI_CREDENTIALS, {
           ssid: selectedNetwork?.SSID || manualSSID,
@@ -250,6 +254,7 @@ export default function WiFiSetupScreen() {
           ],
         );
       } else {
+        console.log(result);
         Alert.alert("Error", result.message || "Failed to register device");
       }
     } catch (error) {

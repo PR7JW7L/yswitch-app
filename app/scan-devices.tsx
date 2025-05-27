@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -16,58 +16,62 @@ import { useWiFi, WiFiNetwork } from "@/hooks/useWifi";
 export default function ScanDevicesScreen() {
   const { networks, isScanning, scanNetworks, connectToNetwork, isConnecting } =
     useWiFi();
-  const [filteredNetworks, setFilteredNetworks] = useState<WiFiNetwork[]>([]);
 
-  useEffect(() => {
-    const tasmotaNetworks = networks.filter((network) =>
-      network.SSID.toLowerCase().includes("tasmota"),
-    );
-    setFilteredNetworks(tasmotaNetworks);
-  }, [networks]);
+  const filteredNetworks = useMemo(
+    () =>
+      networks.filter((network) =>
+        network.SSID.toLowerCase().includes("tasmota"),
+      ),
+    [networks],
+  );
 
-  useEffect(() => {
-    // Auto-scan on mount
-    handleScan();
-  }, []);
-
-  const handleScan = async () => {
+  const handleScan = useCallback(async () => {
     try {
       await scanNetworks();
     } catch (error) {
+      console.error("Failed to scan WiFi networks:", error);
       Alert.alert(
         "Error",
         "Failed to scan WiFi networks. Please check permissions.",
       );
     }
-  };
+  }, [scanNetworks]);
 
-  const handleConnectToDevice = async (network: WiFiNetwork) => {
-    try {
-      // Most Tasmota devices don't have a password in AP mode
-      const success = await connectToNetwork(network.SSID, "");
+  const handleConnectToDevice = useCallback(
+    async (network: WiFiNetwork) => {
+      try {
+        const success = await connectToNetwork(network.SSID, "");
 
-      if (success) {
-        Alert.alert(
-          "Connected",
-          `Connected to ${network.SSID}. You can now configure the device.`,
-          [
-            {
-              text: "Configure Device",
-              onPress: () =>
-                router.push(`/configure-device?ssid=${network.SSID}`),
-            },
-          ],
-        );
-      } else {
-        Alert.alert(
-          "Connection Failed",
-          "Could not connect to the device network.",
-        );
+        if (success) {
+          Alert.alert(
+            "Connected",
+            `Connected to ${network.SSID}. You can now configure the device.`,
+            [
+              {
+                text: "Configure Device",
+                onPress: () =>
+                  router.push(`/configure-device?ssid=${network.SSID}`),
+              },
+            ],
+          );
+        } else {
+          Alert.alert(
+            "Connection Failed",
+            "Could not connect to the device network.",
+          );
+        }
+      } catch (error) {
+        console.error("Failed to connect to device network:", error);
+        Alert.alert("Error", "Failed to connect to device network.");
       }
-    } catch (error) {
-      Alert.alert("Error", "Failed to connect to device network.");
-    }
-  };
+    },
+    [connectToNetwork],
+  );
+
+  useEffect(() => {
+    // Auto-scan on mount
+    void handleScan();
+  }, [handleScan]);
 
   const renderNetworkItem = ({ item }: { item: WiFiNetwork }) => (
     <TouchableOpacity

@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { StorageKeys, storageService } from "@/lib/storage";
-import { serverApi } from "@/lib/api";
+import { deviceOperationsService } from "@/services/device-operations";
 
 export default function MqttConfigScreen() {
   const [serverUrl, setServerUrl] = useState("");
@@ -27,7 +27,6 @@ export default function MqttConfigScreen() {
 
     if (savedUrl) {
       setServerUrl(savedUrl);
-      serverApi.setServerUrl(savedUrl);
     }
 
     if (savedMqttConfig) {
@@ -43,8 +42,8 @@ export default function MqttConfigScreen() {
 
     setIsLoading(true);
     try {
-      serverApi.setServerUrl(serverUrl.trim());
-      const response = await serverApi.getMqttConfig();
+      // deviceSetupService.setServerUrl(serverUrl.trim());
+      const response = await deviceOperationsService.getMqttConfig();
 
       if (response.success && response.data) {
         setMqttConfig(response.data);

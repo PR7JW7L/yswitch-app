@@ -10,9 +10,12 @@ import {
   View,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { generateDeviceId, saveDeviceConfiguration } from "@/lib/device";
-import { deviceApi } from "@/lib/tasmota";
+import {
+  generateDeviceId,
+  saveDeviceConfiguration,
+} from "@/services/device-storage";
 import { StorageKeys, storageService } from "@/lib/storage";
+import { deviceSetupService } from "@/services/device-setup";
 
 function waitForDevice(timeout = 5_0) {
   return new Promise((resolve) => setTimeout(resolve, timeout));
@@ -54,7 +57,7 @@ export default function ConfigureDeviceScreen() {
     try {
       // Step 1: Test device connection
       setConfigurationStep(0);
-      const deviceInfo = await deviceApi.getDeviceInfo();
+      const deviceInfo = await deviceSetupService.getDeviceStatus();
       if (!deviceInfo.success || !deviceInfo.data) {
         throw new Error("Cannot connect to device");
       }
@@ -62,14 +65,14 @@ export default function ConfigureDeviceScreen() {
 
       // Step 2: Configure GPIO
       setConfigurationStep(1);
-      const gpioResult = await deviceApi.configureGPIO();
+      const gpioResult = await deviceSetupService.configureGPIO();
       if (!gpioResult.success) throw new Error("GPIO configuration failed");
 
       await waitForDevice();
 
       // Step 3: Configure MQTT
       setConfigurationStep(2);
-      const mqttResult = await deviceApi.configureMQTT(
+      const mqttResult = await deviceSetupService.configureMQTT(
         {
           host: mqttConfig.host,
           port: parseInt(mqttConfig.port),

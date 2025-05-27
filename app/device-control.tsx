@@ -11,9 +11,9 @@ import {
   View,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { getConfiguredDevices } from "@/lib/device";
-import { serverApi } from "@/lib/api";
+import { getConfiguredDevices } from "@/services/device-storage";
 import { StorageKeys, storageService } from "@/lib/storage";
+import { deviceOperationsService } from "@/services/device-operations";
 
 export default function DeviceControlScreen() {
   const { deviceId } = useLocalSearchParams<{ deviceId: string }>();
@@ -51,8 +51,8 @@ export default function DeviceControlScreen() {
     setIsLoading(true);
     try {
       const result = isDeviceOn
-        ? await serverApi.turnDeviceOff(deviceId)
-        : await serverApi.turnDeviceOn(deviceId);
+        ? await deviceOperationsService.turnDeviceOff(deviceId)
+        : await deviceOperationsService.turnDeviceOn(deviceId);
 
       if (result.success) {
         setIsDeviceOn(!isDeviceOn);
@@ -72,7 +72,7 @@ export default function DeviceControlScreen() {
 
     setIsLoading(true);
     try {
-      const result = await serverApi.turnDeviceOn(deviceId);
+      const result = await deviceOperationsService.turnDeviceOn(deviceId);
       console.log({ result });
       if (result.success) {
         setIsDeviceOn(true);
@@ -93,7 +93,7 @@ export default function DeviceControlScreen() {
 
     setIsLoading(true);
     try {
-      const result = await serverApi.turnDeviceOff(deviceId);
+      const result = await deviceOperationsService.turnDeviceOff(deviceId);
       if (result.success) {
         setIsDeviceOn(false);
         setLastUpdate(new Date());

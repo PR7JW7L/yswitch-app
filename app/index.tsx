@@ -5,82 +5,45 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { router } from "expo-router";
 import { StorageKeys, storageService } from "@/lib/storage";
-import { serverApi } from "@/lib/api";
-import { getConfiguredDevices } from "@/lib/device";
+import { getConfiguredDevices } from "@/services/device-storage";
+import { deviceOperationsService } from "@/services/device-operations";
+import { authService } from "@/services/auth";
 
 function HomeScreenContent() {
-  const [serverUrl, setServerUrl] = useState("https://tasmota.stag.yarsa.dev/");
   const [isLoading, setIsLoading] = useState(false);
   const [configuredDevices, setConfiguredDevices] = useState<
     Record<string, any>
   >({});
 
   useEffect(() => {
-    const savedUrl = storageService.getString(StorageKeys.SERVER_URL);
-    if (savedUrl) {
-      setServerUrl(savedUrl);
-      serverApi.setServerUrl(savedUrl);
-    }
-
     setConfiguredDevices(getConfiguredDevices());
   }, []);
 
   const handleServerUrlSave = async () => {
-    if (!serverUrl.trim()) {
-      Alert.alert("Error", "Please enter a valid server URL");
-      return;
-    }
-
     setIsLoading(true);
     try {
-      serverApi.setServerUrl(serverUrl.trim());
-      const response = await serverApi.getMqttConfig();
+      const response = await deviceOperationsService.getMqttConfig();
 
       if (response.success && response.data) {
-        storageService.setString(StorageKeys.SERVER_URL, serverUrl.trim());
         storageService.setObject(StorageKeys.MQTT_CONFIG, response.data);
         Alert.alert("Success", "Server URL saved and MQTT config retrieved!");
       } else {
         Alert.alert("Error", response.message || "Failed to connect to server");
       }
-    } catch (error) {
-      Alert.alert(
-        "Error",
-        "Failed to connect to server. Please check the URL.",
-      );
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const startDeviceConfiguration = () => {
-    const savedUrl = storageService.getString(StorageKeys.SERVER_URL);
-    if (!savedUrl) {
-      Alert.alert("Error", "Please set up server URL first");
-      return;
-    }
-    router.push("/scan-devices");
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Server Configuration</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter server URL (e.g., https://api.example.com)"
-            value={serverUrl}
-            onChangeText={setServerUrl}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
           <TouchableOpacity
             style={[styles.button, styles.primaryButton]}
             onPress={handleServerUrlSave}
@@ -95,7 +58,7 @@ function HomeScreenContent() {
           <Text style={styles.sectionTitle}>Device Configuration</Text>
           <TouchableOpacity
             style={[styles.button, styles.secondaryButton]}
-            onPress={startDeviceConfiguration}>
+            onPress={() => router.push("/scan-devices")}>
             <Text style={styles.buttonText}>Configure New Device</Text>
           </TouchableOpacity>
         </View>
@@ -127,8 +90,8 @@ function HomeScreenContent() {
 export default function HomeScreen() {
   const [ready, setReady] = useState(false);
   useEffect(() => {
-    const token = storageService.getString(StorageKeys.ACCESS_TOKEN);
-    if (!token) {
+    const user = authService.getUser();
+    if (!user) {
       router.navigate("/login");
     } else {
       setReady(true);

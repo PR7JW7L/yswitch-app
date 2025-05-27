@@ -6,9 +6,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { serverApi } from "@/lib/api";
 import { router } from "expo-router";
 import { PasswordInput } from "@/components/PasswordInput";
+import { authService } from "@/services/auth";
 
 const LoginPage = ({ onSwitchToSignup }: { onSwitchToSignup: () => void }) => {
   const [email, setEmail] = useState("");
@@ -17,7 +17,7 @@ const LoginPage = ({ onSwitchToSignup }: { onSwitchToSignup: () => void }) => {
 
   const handleLogin = async () => {
     setError("");
-    const { message, success } = await serverApi.login(email, password);
+    const { success, message } = await authService.login({ email, password });
     if (success) {
       router.navigate("/");
     } else setError(message ?? "Failed to login");
@@ -57,7 +57,7 @@ const LoginPage = ({ onSwitchToSignup }: { onSwitchToSignup: () => void }) => {
       </TouchableOpacity>
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>Don't have an account? </Text>
+        <Text style={styles.footerText}>{`Don't have an account? `}</Text>
         <TouchableOpacity onPress={onSwitchToSignup}>
           <Text style={styles.linkText}>Sign up</Text>
         </TouchableOpacity>
@@ -80,11 +80,11 @@ const SignupPage = ({ onSwitchToLogin }: { onSwitchToLogin: () => void }) => {
       return;
     }
     setError("");
-    const { message, success } = await serverApi.register(
+    const { message, success } = await authService.register({
       fullname,
       email,
       password,
-    );
+    });
 
     if (success) {
       onSwitchToLogin();

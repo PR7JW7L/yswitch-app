@@ -1,4 +1,4 @@
-import { StorageKeys, storageService } from "./storage";
+import { StorageKeys, storageService } from "@/lib/storage";
 
 export const generateDeviceId = (): string => {
   const timestamp = Date.now().toString(36);

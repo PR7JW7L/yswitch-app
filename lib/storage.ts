@@ -9,6 +9,7 @@ export const StorageKeys = {
   WIFI_CREDENTIALS: "wifi_credentials",
   CONFIGURED_DEVICES: "configured_devices",
   ACCESS_TOKEN: "accessToken",
+  USER: "user",
 } as const;
 
 export const storageService = {
