@@ -29,8 +29,8 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      storageService.delete(StorageKeys.ACCESS_TOKEN);
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      storageService.clear();
     }
     return Promise.reject(error);
   },
@@ -99,6 +99,14 @@ async function handleApiCall<D = any, E = any>(
 }
 
 function getErrorMessage(error: any, defaultMessage?: string) {
+  if (isAxiosError(error)) {
+    return (
+      error.response?.data?.error ??
+      error.response?.data?.errors?.[0]?.message?.[0] ??
+      error.response?.data?.message ??
+      defaultMessage
+    );
+  }
   return error?.errors?.[0]?.message?.[0] ?? error?.message ?? defaultMessage;
 }
 

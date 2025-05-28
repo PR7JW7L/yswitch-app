@@ -24,14 +24,14 @@ class DeviceSetupService {
 
   async configureMQTT(
     config: MqttConfig,
-    deviceId: string,
+    deviceId?: string,
   ): Promise<ApiResponse<object>> {
     const MQTTHOST = config.host;
     const MQTTPORT = config.port;
     const MQTTCLIENT = "DVES_%06X";
     const MQTTUSER = config.username;
     const MQTTPASSWORD = config.password;
-    const MQTTTOPIC = deviceId;
+    const MQTTTOPIC = "tasmota_%06X";
     const FULLTOPIC = "%prefix%/%topic%/";
 
     return await handleApiCall(

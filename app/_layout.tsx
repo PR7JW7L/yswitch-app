@@ -19,10 +19,7 @@ export default function RootLayout() {
           headerStyle: { backgroundColor: "#2563eb" },
           headerTintColor: "#fff",
         }}>
-        <Stack.Screen
-          name="index"
-          options={{ title: "Device Configuration" }}
-        />
+        <Stack.Screen name="index" options={{ title: "Devices" }} />
 
         <Stack.Screen
           name="scan-devices"

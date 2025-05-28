@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   RefreshControl,
   SafeAreaView,
@@ -13,8 +13,12 @@ import { authService } from "@/services/auth";
 import { useGetSavedDevices } from "@/hooks/useGetSavedDevices";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useGetMqttConfig } from "@/hooks/useGetMqttConfig";
+import { StorageKeys, storageService } from "@/lib/storage";
+import { ServerMqttConfig } from "@/services/device-control";
+import { useFocusEffect } from "@react-navigation/native";
 
 function HomeScreenContent() {
+  const [mqttConfigLocal, setMqttConfigLocal] = useState<ServerMqttConfig>();
   const {
     data: savedDevices,
     isLoading: loadingSavedDevices,
@@ -22,8 +26,37 @@ function HomeScreenContent() {
     refetch: refetchSavedDevices,
   } = useGetSavedDevices();
 
-  const { data: mqttConfig } = useGetMqttConfig({ onMount: true });
-  if (!mqttConfig) return null;
+  const { refetch: refetchMqttConfig } = useGetMqttConfig({});
+
+  useEffect(() => {
+    const savedMqttConfig = storageService.getObject<ServerMqttConfig>(
+      StorageKeys.MQTT_CONFIG,
+    );
+    if (savedMqttConfig) setMqttConfigLocal(savedMqttConfig);
+  }, []);
+
+  if (!mqttConfigLocal) {
+    return (
+      <View style={{ padding: 16, backgroundColor: "white", flex: 1 }}>
+        <TouchableOpacity
+          onPress={() =>
+            refetchMqttConfig().then((data) => {
+              if (data) setMqttConfigLocal(data);
+            })
+          }
+          style={{
+            alignItems: "center",
+            borderRadius: 999,
+            backgroundColor: "#259d9d",
+            padding: 16,
+          }}>
+          <Text style={{ color: "white", fontWeight: "bold" }}>
+            Check Server Status
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -91,14 +124,16 @@ function HomeScreenContent() {
 
 export default function HomeScreen() {
   const [ready, setReady] = useState(false);
-  useEffect(() => {
-    const user = authService.getUser();
-    if (!user) {
-      router.navigate("/login");
-    } else {
-      setReady(true);
-    }
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      const user = authService.getUser();
+      if (!user) {
+        router.navigate("/login");
+      } else {
+        setReady(true);
+      }
+    }, []),
+  );
   if (!ready) return null;
   return <HomeScreenContent />;
 }

@@ -11,15 +11,15 @@ import { PasswordInput } from "@/components/PasswordInput";
 import { authService } from "@/services/auth";
 
 const LoginPage = ({ onSwitchToSignup }: { onSwitchToSignup: () => void }) => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("switch@yarsa.tech");
+  const [password, setPassword] = useState("Password");
   const [error, setError] = useState("");
 
   const handleLogin = async () => {
     setError("");
     const { success, message } = await authService.login({ email, password });
     if (success) {
-      router.navigate("/");
+      router.replace("/");
     } else setError(message ?? "Failed to login");
   };
 

@@ -10,10 +10,7 @@ import {
   View,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import {
-  generateDeviceId,
-  saveDeviceConfiguration,
-} from "@/services/device-storage";
+import { saveDeviceConfiguration } from "@/services/device-storage";
 import { deviceSetup } from "@/services/device-setup";
 import { StorageKeys, storageService } from "@/lib/storage";
 
@@ -36,8 +33,6 @@ export default function ConfigureDeviceScreen() {
   const [mqttConfig, setMqttConfig] = useState<any>(null);
 
   useEffect(() => {
-    const id = generateDeviceId();
-    setDeviceId(id);
     const savedMqttConfig = storageService.getObject(StorageKeys.MQTT_CONFIG);
     setMqttConfig(savedMqttConfig);
   }, []);
@@ -61,7 +56,8 @@ export default function ConfigureDeviceScreen() {
       if (!deviceInfo.success || !deviceInfo.data) {
         throw new Error("Cannot connect to device");
       }
-      setDeviceId(deviceInfo.data.StatusNET.Hostname);
+      const latestDeviceId = deviceInfo.data.StatusNET.Hostname;
+      setDeviceId(latestDeviceId);
 
       // Step 2: Configure GPIO
       setConfigurationStep(1);
@@ -72,18 +68,15 @@ export default function ConfigureDeviceScreen() {
 
       // Step 3: Configure MQTT
       setConfigurationStep(2);
-      const mqttResult = await deviceSetup.configureMQTT(
-        {
-          host: mqttConfig.host,
-          port:
-            typeof mqttConfig.port === "string"
-              ? parseInt(mqttConfig.port)
-              : mqttConfig.port,
-          username: mqttConfig.username,
-          password: mqttConfig.password,
-        },
-        deviceId,
-      );
+      const mqttResult = await deviceSetup.configureMQTT({
+        host: mqttConfig.host,
+        port:
+          typeof mqttConfig.port === "string"
+            ? parseInt(mqttConfig.port)
+            : mqttConfig.port,
+        username: mqttConfig.username,
+        password: mqttConfig.password,
+      });
       await waitForDevice();
 
       if (!mqttResult.success) throw new Error("MQTT configuration failed");
@@ -93,7 +86,7 @@ export default function ConfigureDeviceScreen() {
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Save device configuration
-      saveDeviceConfiguration(deviceId, {
+      saveDeviceConfiguration(latestDeviceId, {
         ssid: ssid,
         mqttConfig,
         configuredAt: new Date().toISOString(),
@@ -101,11 +94,12 @@ export default function ConfigureDeviceScreen() {
 
       Alert.alert(
         "Configuration Complete!",
-        `Device ${deviceId} has been configured successfully. You can now connect it to your home WiFi network.`,
+        `Device ${latestDeviceId} has been configured successfully. You can now connect it to your home WiFi network.`,
         [
           {
             text: "Setup WiFi",
-            onPress: () => router.navigate(`/wifi-setup?deviceId=${deviceId}`),
+            onPress: () =>
+              router.replace(`/wifi-setup?deviceId=${latestDeviceId}`),
           },
         ],
       );
@@ -188,7 +182,7 @@ export default function ConfigureDeviceScreen() {
             <TouchableOpacity
               style={styles.nextButton}
               onPress={() =>
-                router.navigate(`/wifi-setup?deviceId=${deviceId}`)
+                router.replace(`/wifi-setup?deviceId=${deviceId}`)
               }>
               <Text style={styles.nextButtonText}>Setup WiFi Connection</Text>
             </TouchableOpacity>

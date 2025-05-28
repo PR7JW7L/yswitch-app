@@ -37,22 +37,11 @@ export default function WiFiSetupScreen() {
 
   const initializeWiFiSetup = async () => {
     try {
-      // Check if we're already connected to the device hotspot
-      const currentSSID = await WifiManager.getCurrentWifiSSID();
-      if (currentSSID === deviceId) {
-        console.log("Already connected to device hotspot");
-      } else {
-        try {
-          await WifiManager.connectToProtectedSSID(deviceId, "", false, false);
-        } catch (error) {
-          console.error("Failed to connect to device hotspot:", error);
-          Alert.alert(
-            "Connect to Device WiFi",
-            `Please connect to the WiFi network "${deviceId}" to configure your device.`,
-            [{ text: "OK" }],
-          );
-        }
-      }
+      Alert.alert(
+        "Connect to Device WiFi",
+        `Please connect to the device hotspot`,
+        [{ text: "OK" }],
+      );
 
       await handleScanNetworks();
     } catch (error) {
@@ -79,24 +68,6 @@ export default function WiFiSetupScreen() {
     setSelectedNetwork(null);
   };
 
-  const verifyDeviceConnection = async (): Promise<boolean> => {
-    try {
-      const currentSSID = await WifiManager.getCurrentWifiSSID();
-      if (!currentSSID?.includes(deviceId || "")) {
-        Alert.alert(
-          "Wrong Network",
-          `Please connect to the device WiFi network that starts with "${deviceId}" first.`,
-          [{ text: "OK" }],
-        );
-        return false;
-      }
-      return true;
-    } catch (error) {
-      console.error("Failed to verify device connection:", error);
-      return false;
-    }
-  };
-
   const handleConnectDevice = async () => {
     const homeWifiSSID = selectedNetwork?.SSID || manualSSID;
 
@@ -110,11 +81,8 @@ export default function WiFiSetupScreen() {
       return;
     }
 
-    // Verify we're connected to the device hotspot (hardware WiFi)
-    const isConnectedToDevice = await verifyDeviceConnection();
-    if (!isConnectedToDevice) {
-      return;
-    }
+    //Maybe Verify we're connected to the device hotspot (hardware WiFi)
+    // code...
 
     setIsConnecting(true);
     try {
@@ -173,12 +141,7 @@ export default function WiFiSetupScreen() {
         Alert.alert(
           "Connected Successfully",
           `You are now connected to "${expectedSSID}". You can proceed with device registration.`,
-          [
-            {
-              text: "Register Device",
-              onPress: handleRegisterDevice,
-            },
-          ],
+          [{ text: "Ok" }],
         );
       } else {
         Alert.alert(
@@ -191,46 +154,11 @@ export default function WiFiSetupScreen() {
     }
   };
 
-  const checkCurrentWiFiForRegistration = async (): Promise<boolean> => {
-    try {
-      const currentSSID = await WifiManager.getCurrentWifiSSID();
-      const homeWifiSSID = selectedNetwork?.SSID || manualSSID;
-
-      if (currentSSID !== homeWifiSSID) {
-        Alert.alert(
-          "Wrong Network",
-          `Please connect to "${homeWifiSSID}" network to register the device with the server.`,
-          [
-            {
-              text: "Try Again",
-              onPress: () => checkCurrentWiFiForRegistration(),
-            },
-            { text: "Cancel" },
-          ],
-        );
-        return false;
-      }
-      return true;
-    } catch (error) {
-      console.error("Failed to check current WiFi:", error);
-      return false;
-    }
-  };
-
   const handleRegisterDevice = async () => {
     if (!deviceId) {
       Alert.alert("Error", "Device ID not found");
       return;
     }
-
-    // If configuration was sent, verify we're on the right network
-    if (configurationSent) {
-      const isOnCorrectNetwork = await checkCurrentWiFiForRegistration();
-      if (!isOnCorrectNetwork) {
-        return;
-      }
-    }
-
     setIsRegistering(true);
     try {
       const result = await deviceControl.registerDevice(deviceId);
@@ -247,16 +175,15 @@ export default function WiFiSetupScreen() {
             {
               text: "Control Device",
               onPress: () =>
-                router.navigate(`/device-control?deviceId=${deviceId}`),
+                router.replace(`/device-control?deviceId=${deviceId}`),
             },
             {
               text: "Back to Home",
-              onPress: () => router.navigate("/"),
+              onPress: () => router.replace("/"),
             },
           ],
         );
       } else {
-        console.log(result);
         Alert.alert("Error", result.message || "Failed to register device");
       }
     } catch (error) {

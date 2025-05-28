@@ -50,7 +50,7 @@ export default function ScanDevicesScreen() {
               {
                 text: "Configure Device",
                 onPress: () =>
-                  router.navigate(`/configure-device?ssid=${network.SSID}`),
+                  router.replace(`/configure-device?ssid=${network.SSID}`),
               },
             ],
           );

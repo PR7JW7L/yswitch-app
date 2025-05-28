@@ -27,6 +27,7 @@ export function useApi<T>(
         const result = await fetchFn();
         setData(result);
         setError(null);
+        return result;
       } catch (err) {
         setError(err);
       } finally {
