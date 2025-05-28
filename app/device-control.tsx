@@ -1,6 +1,8 @@
-import React, { useState } from "react";
+import React from "react";
 import {
+  ActivityIndicator,
   Alert,
+  Button,
   RefreshControl,
   SafeAreaView,
   ScrollView,
@@ -10,34 +12,35 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { deviceControl } from "@/services/device-control";
-import { useFocusApi } from "@/hooks/useFocusApi";
+import { useApi } from "@/hooks/useApi";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 export default function DeviceControlScreen() {
   const { deviceId } = useLocalSearchParams<{ deviceId: string }>();
-  const [isLoading, setIsLoading] = useState(false);
-  const { data, loading, refetch } = useFocusApi(
+  const { data, isLoading, isRefetching, refetch } = useApi(
     () => deviceControl.getDevice(deviceId).then((r) => r.data),
+    { onFocus: true },
     [],
   );
+
   const isDeviceOn = data?.status === "ON";
+
   const handleToggleDevice = async () => {
     if (!deviceId) {
       Alert.alert("Error", "Device ID not found");
       return;
     }
-    setIsLoading(true);
     try {
       const { success, message } = isDeviceOn
         ? await deviceControl.turnDeviceOff(deviceId)
         : await deviceControl.turnDeviceOn(deviceId);
 
       if (success) {
-        refetch();
+        void refetch();
       } else Alert.alert("Error", message || "Failed to control device");
     } finally {
-      setIsLoading(false);
     }
   };
 
@@ -56,7 +59,7 @@ export default function DeviceControlScreen() {
           onPress: () => {
             deviceControl.removeDevice(deviceId).then(({ success }) => {
               if (success) {
-                router.navigate("/");
+                router.back();
               } else {
                 Alert.alert("Error", "Failed to remove device");
               }
@@ -82,18 +85,47 @@ export default function DeviceControlScreen() {
     );
   }
 
-  if (loading) return <Text>Please wait...</Text>;
-  if (!data) return <Text>Failed to get data</Text>;
+  if (isLoading)
+    return (
+      <View style={{ flex: 1, justifyContent: "center" }}>
+        <ActivityIndicator size={28} />
+      </View>
+    );
+
+  if (!data)
+    return (
+      <View style={{ flex: 1, justifyContent: "center", padding: 16, gap: 8 }}>
+        <Text style={{ textAlign: "center" }}>Device not found</Text>
+        <Button
+          onPress={() =>
+            router.canGoBack() ? router.back() : router.navigate("/")
+          }
+          title="Back to Home"
+        />
+      </View>
+    );
 
   return (
     <SafeAreaView style={styles.container}>
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <TouchableOpacity onPress={handleRemoveDevice}>
+              <MaterialCommunityIcons
+                name="trash-can-outline"
+                size={20}
+                color="white"
+              />
+            </TouchableOpacity>
+          ),
+        }}
+      />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={refetch} />
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
         }>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Device Control</Text>
           <Text style={styles.deviceIdText}>{data.name}</Text>
           {data.updatedAt ? (
             <Text style={styles.lastUpdateText}>
@@ -105,7 +137,6 @@ export default function DeviceControlScreen() {
         <View style={styles.controlSection}>
           <Text style={styles.sectionTitle}>Device Controls</Text>
           <View style={styles.statusItem}>
-            <Text style={styles.statusLabel}>Power:</Text>
             <View style={styles.statusValue}>
               <View
                 style={[
@@ -121,10 +152,6 @@ export default function DeviceControlScreen() {
                 {isDeviceOn ? "ON" : "OFF"}
               </Text>
             </View>
-          </View>
-
-          <View style={styles.toggleContainer}>
-            <Text style={styles.toggleLabel}>Power Toggle</Text>
             <Switch
               value={isDeviceOn}
               onValueChange={handleToggleDevice}
@@ -133,14 +160,6 @@ export default function DeviceControlScreen() {
               thumbColor={isDeviceOn ? "#ffffff" : "#f4f3f4"}
             />
           </View>
-        </View>
-
-        <View style={styles.actionSection}>
-          <TouchableOpacity
-            style={styles.removeButton}
-            onPress={handleRemoveDevice}>
-            <Text style={styles.removeButtonText}>Remove Device</Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -158,18 +177,9 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 16,
     paddingVertical: 16,
     backgroundColor: "white",
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   headerTitle: {
     fontSize: 24,
@@ -179,7 +189,7 @@ const styles = StyleSheet.create({
   },
   deviceIdText: {
     fontSize: 16,
-    color: "#666",
+    color: "#000000",
     fontFamily: "monospace",
     marginBottom: 4,
   },
@@ -189,17 +199,8 @@ const styles = StyleSheet.create({
   },
   statusSection: {
     backgroundColor: "white",
-    borderRadius: 12,
     padding: 16,
     marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   sectionTitle: {
     fontSize: 18,
@@ -247,17 +248,8 @@ const styles = StyleSheet.create({
   },
   controlSection: {
     backgroundColor: "white",
-    borderRadius: 12,
     padding: 16,
     marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   toggleContainer: {
     flexDirection: "row",
@@ -296,17 +288,8 @@ const styles = StyleSheet.create({
   },
   infoSection: {
     backgroundColor: "white",
-    borderRadius: 12,
     padding: 16,
     marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   infoContainer: {
     gap: 12,

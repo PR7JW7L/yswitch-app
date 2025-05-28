@@ -51,6 +51,7 @@ interface ApiResponseBase {
 interface ApiSuccessResponse<D> extends ApiResponseBase {
   success: true;
   data: D;
+  error?: undefined;
 }
 
 interface ApiErrorResponse<E> extends ApiResponseBase {

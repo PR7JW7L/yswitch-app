@@ -1,4 +1,3 @@
-import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -14,7 +13,7 @@ export default function RootLayout() {
 
   if (!loaded) return null;
   return (
-    <ThemeProvider value={DefaultTheme}>
+    <>
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: "#2563eb" },
@@ -48,6 +47,6 @@ export default function RootLayout() {
         <Stack.Screen name="login" options={{ headerShown: false }} />
       </Stack>
       <StatusBar style="light" />
-    </ThemeProvider>
+    </>
   );
 }

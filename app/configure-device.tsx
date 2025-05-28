@@ -14,12 +14,19 @@ import {
   generateDeviceId,
   saveDeviceConfiguration,
 } from "@/services/device-storage";
-import { StorageKeys, storageService } from "@/lib/storage";
 import { deviceSetup } from "@/services/device-setup";
+import { StorageKeys, storageService } from "@/lib/storage";
 
 function waitForDevice(timeout = 5_0) {
   return new Promise((resolve) => setTimeout(resolve, timeout));
 }
+
+const configurationSteps = [
+  { title: "Connect to Device", description: "Establishing connection..." },
+  { title: "Configure GPIO", description: "Setting up GPIO pins..." },
+  { title: "Configure MQTT", description: "Setting up MQTT connection..." },
+  { title: "Complete", description: "Configuration completed!" },
+];
 
 export default function ConfigureDeviceScreen() {
   const { ssid } = useLocalSearchParams<{ ssid: string }>();
@@ -34,13 +41,6 @@ export default function ConfigureDeviceScreen() {
     const savedMqttConfig = storageService.getObject(StorageKeys.MQTT_CONFIG);
     setMqttConfig(savedMqttConfig);
   }, []);
-
-  const configurationSteps = [
-    { title: "Connect to Device", description: "Establishing connection..." },
-    { title: "Configure GPIO", description: "Setting up GPIO pins..." },
-    { title: "Configure MQTT", description: "Setting up MQTT connection..." },
-    { title: "Complete", description: "Configuration completed!" },
-  ];
 
   const handleStartConfiguration = async () => {
     if (!mqttConfig) {
@@ -75,7 +75,10 @@ export default function ConfigureDeviceScreen() {
       const mqttResult = await deviceSetup.configureMQTT(
         {
           host: mqttConfig.host,
-          port: parseInt(mqttConfig.port),
+          port:
+            typeof mqttConfig.port === "string"
+              ? parseInt(mqttConfig.port)
+              : mqttConfig.port,
           username: mqttConfig.username,
           password: mqttConfig.password,
         },

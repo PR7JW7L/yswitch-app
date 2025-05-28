@@ -42,11 +42,16 @@ export default function WiFiSetupScreen() {
       if (currentSSID === deviceId) {
         console.log("Already connected to device hotspot");
       } else {
-        Alert.alert(
-          "Connect to Device WiFi",
-          `Please connect to the WiFi network "${deviceId}" to configure your device.`,
-          [{ text: "OK" }],
-        );
+        try {
+          await WifiManager.connectToProtectedSSID(deviceId, "", false, false);
+        } catch (error) {
+          console.error("Failed to connect to device hotspot:", error);
+          Alert.alert(
+            "Connect to Device WiFi",
+            `Please connect to the WiFi network "${deviceId}" to configure your device.`,
+            [{ text: "OK" }],
+          );
+        }
       }
 
       await handleScanNetworks();

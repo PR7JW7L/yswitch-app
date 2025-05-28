@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
-  Pressable,
   RefreshControl,
   SafeAreaView,
   ScrollView,
@@ -11,94 +9,82 @@ import {
   View,
 } from "react-native";
 import { router, Stack } from "expo-router";
-import { StorageKeys, storageService } from "@/lib/storage";
-import { deviceControl } from "@/services/device-control";
 import { authService } from "@/services/auth";
-import { useFocusApi } from "@/hooks/useFocusApi";
+import { useGetSavedDevices } from "@/hooks/useGetSavedDevices";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useGetMqttConfig } from "@/hooks/useGetMqttConfig";
 
 function HomeScreenContent() {
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleServerUrlSave = async () => {
-    setIsLoading(true);
-    try {
-      const response = await deviceControl.getMqttConfig();
-
-      if (response.success && response.data) {
-        storageService.setObject(StorageKeys.MQTT_CONFIG, response.data);
-        Alert.alert("Success", "Server URL saved and MQTT config retrieved!");
-      } else {
-        Alert.alert("Error", response.message || "Failed to connect to server");
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const {
-    data: configuredDevices,
-    loading,
-    refetch,
-  } = useFocusApi(() => deviceControl.getDevices().then((r) => r.data), []);
+    data: savedDevices,
+    isLoading: loadingSavedDevices,
+    isRefetching: refetchingSavedDevices,
+    refetch: refetchSavedDevices,
+  } = useGetSavedDevices();
+
+  const { data: mqttConfig } = useGetMqttConfig({ onMount: true });
+  if (!mqttConfig) return null;
 
   return (
     <SafeAreaView style={styles.container}>
       <Stack.Screen
         options={{
           headerRight: () => (
-            <Pressable
+            <TouchableOpacity
+              style={{ width: 40 }}
               onPress={() =>
                 authService.logout(() => router.navigate("/login"))
               }>
-              <Text>Logout</Text>
-            </Pressable>
+              <MaterialCommunityIcons name="logout" size={20} color="white" />
+            </TouchableOpacity>
           ),
         }}
       />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={refetch} />
+          <RefreshControl
+            refreshing={refetchingSavedDevices || loadingSavedDevices}
+            onRefresh={refetchSavedDevices}
+          />
         }>
-        <View style={styles.section}>
-          <TouchableOpacity
-            style={[styles.button, styles.primaryButton]}
-            onPress={handleServerUrlSave}
-            disabled={isLoading}>
-            <Text style={styles.buttonText}>
-              {isLoading ? "Connecting..." : "Save & Test Connection"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Device Configuration</Text>
-          <TouchableOpacity
-            style={[styles.button, styles.secondaryButton]}
-            onPress={() => router.navigate("/scan-devices")}>
-            <Text style={styles.buttonText}>Configure New Device</Text>
-          </TouchableOpacity>
-        </View>
-
-        {Object.keys(configuredDevices ?? {}).length > 0 && (
+        {!!savedDevices && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Configured Devices</Text>
-            {configuredDevices?.map((device) => (
+            <Text style={styles.sectionTitle}>My Devices</Text>
+            {savedDevices?.map((device) => (
               <TouchableOpacity
                 key={device.id}
                 style={styles.deviceItem}
                 onPress={() =>
                   router.navigate(`/device-control?deviceId=${device.name}`)
                 }>
-                <Text style={styles.deviceId}>{device.name}</Text>
-                <Text>Status: {device.status}</Text>
-                <Text style={styles.deviceDate}>
-                  Updated: {new Date(device.updatedAt).toLocaleString()}
-                </Text>
+                <View style={styles.deviceInfo}>
+                  <Text style={styles.deviceId}>{device.name}</Text>
+                  <Text style={styles.deviceDate}>
+                    Updated: {new Date(device.updatedAt).toLocaleString()}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.deviceStatusDot,
+                    device.status === "ON" ? styles.statusOn : styles.statusOff,
+                  ]}
+                />
               </TouchableOpacity>
             ))}
+            {!savedDevices.length && (
+              <Text>No devices found. Add a new device to get started.</Text>
+            )}
           </View>
         )}
       </ScrollView>
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={[styles.button, styles.secondaryButton]}
+          onPress={() => router.navigate("/scan-devices")}>
+          <Text style={styles.buttonText}>Add New Device</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -120,21 +106,15 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#f0f0f0",
   },
   scrollContent: {
-    padding: 20,
+    padding: 16,
   },
   section: {
     backgroundColor: "white",
     padding: 20,
-    borderRadius: 10,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 18,
@@ -167,10 +147,19 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   deviceItem: {
+    flexDirection: "row",
+    gap: 12,
     padding: 15,
     backgroundColor: "#f9f9f9",
-    borderRadius: 8,
     marginBottom: 10,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    overflow: "hidden",
+  },
+  deviceInfo: {
+    flex: 1,
+    overflow: "hidden",
   },
   deviceId: {
     fontSize: 16,
@@ -181,5 +170,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
     marginTop: 5,
+  },
+  deviceStatusDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 12,
+  },
+  statusOn: {
+    backgroundColor: "#07cb8e",
+  },
+  statusOff: {
+    backgroundColor: "#ef4444",
+  },
+  footer: {
+    backgroundColor: "#fff",
+    padding: 16,
   },
 });
