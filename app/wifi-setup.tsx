@@ -29,7 +29,7 @@ export default function WiFiSetupScreen() {
     null,
   );
   const [manualSSID, setManualSSID] = useState("");
-  const [password, setPassword] = useState("wifipassword@yarsalabs");
+  const [password, setPassword] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
