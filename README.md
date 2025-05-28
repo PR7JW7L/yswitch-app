@@ -1,50 +1,123 @@
-# Welcome to your Expo app 👋
+# ySwitch Android App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A React Native application built with Expo and configured for Android development using a custom development client.
 
-## Get started
+## Prerequisites
 
-1. Install dependencies
+Before running this application, ensure you have the following installed:
 
-   ```bash
-   npm install
-   ```
+- **Bun** - Fast JavaScript runtime and package manager
+- **Android Studio** - For Android development tools and emulator
+- **Java Development Kit (JDK)** - Required for Android development
+- **Android SDK** - Installed through Android Studio
+- **Expo CLI** - Will be installed with dependencies
 
-2. Start the app
+### Android Setup
 
-   ```bash
-   npx expo start
-   ```
+1. Install Android Studio from [developer.android.com](https://developer.android.com/studio)
+2. Set up Android SDK and accept the license agreements
+3. Create an Android Virtual Device (AVD) or connect a physical Android device
+4. Enable Developer Options and USB Debugging on your physical device (if using)
 
-In the output, you'll find options to open the app in a
+### Environment Variables (if needed)
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+Make sure your environment variables are set up correctly:
 
 ```bash
-npm run reset-project
+export ANDROID_HOME=$HOME/Android/Sdk
+export PATH=$PATH:$ANDROID_HOME/emulator
+export PATH=$PATH:$ANDROID_HOME/tools
+export PATH=$PATH:$ANDROID_HOME/tools/bin
+export PATH=$PATH:$ANDROID_HOME/platform-tools
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Getting Started
 
-## Learn more
+### 1. Install Dependencies
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+bun i
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+This will install all the necessary dependencies for the project using Bun's fast package manager.
 
-## Join the community
+### 2. Run the Application
 
-Join our community of developers creating universal apps.
+```bash
+bun expo run:android -d
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+This command will:
+- Build the development client for Android
+- Launch the app on your connected Android device or emulator
+- Start the Metro bundler for hot reloading
+
+The `-d` flag enables device selection if multiple devices are available.
+
+## Development
+
+### Available Scripts
+
+- `bun i` - Install dependencies
+- `bun expo run:android -d` - Run the app on Android with device selection
+- `bun expo start` - Start the Expo development server
+- `bun expo prebuild` - Generate native code (if needed)
+
+### Development Client
+
+This project uses Expo's custom development client, which allows you to:
+- Use custom native code and third-party libraries
+- Have a more native development experience
+- Test features that require a production-like environment
+
+### Hot Reloading
+
+The development server supports hot reloading, so changes to your code will automatically refresh the app without losing state.
+
+## Troubleshooting
+
+### Common Issues
+
+**Device not detected:**
+- Ensure USB debugging is enabled on your Android device
+- Check that your device is properly connected with `adb devices`
+
+**Build errors:**
+- Clear the cache with `bun expo start --clear`
+- Ensure all Android SDK components are installed and up to date
+
+**Metro bundler issues:**
+- Restart the bundler with `bun expo start --clear`
+- Check for port conflicts (default is 8081)
+
+### Useful Commands
+
+```bash
+# Check connected devices
+adb devices
+
+# Clear Expo cache
+bun expo start --clear
+
+# Restart ADB server
+adb kill-server && adb start-server
+```
+
+## Additional Resources
+
+- [Expo Documentation](https://docs.expo.dev/)
+- [Expo Development Client](https://docs.expo.dev/development/introduction/)
+- [React Native Documentation](https://reactnative.dev/docs/getting-started)
+- [Bun Documentation](https://bun.sh/docs)
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Make your changes
+4. Test on Android device/emulator
+5. Submit a pull request
+
+## License
+
+[Add your license information here]
