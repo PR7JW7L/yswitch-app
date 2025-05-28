@@ -35,24 +35,11 @@ export default function WiFiSetupScreen() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [configurationSent, setConfigurationSent] = useState(false);
 
-  const initializeWiFiSetup = async () => {
-    try {
-      Alert.alert(
-        "Connect to Device WiFi",
-        `Please connect to the device hotspot`,
-        [{ text: "OK" }],
-      );
-
-      await handleScanNetworks();
-    } catch (error) {
-      console.error("Failed to initialize WiFi setup:", error);
-    }
-  };
-
   const handleScanNetworks = async () => {
     try {
       await scanNetworks();
     } catch (error) {
+      console.error("Failed to scan WiFi networks:", error);
       Alert.alert("Error", "Failed to scan WiFi networks");
     }
   };
@@ -81,9 +68,7 @@ export default function WiFiSetupScreen() {
       return;
     }
 
-    //Maybe Verify we're connected to the device hotspot (hardware WiFi)
-    // code...
-
+    await WifiManager.connectToProtectedSSID(deviceId, "", false, false);
     setIsConnecting(true);
     try {
       // Send the HOME WiFi credentials to the device while connected to device hotspot
@@ -198,7 +183,7 @@ export default function WiFiSetupScreen() {
 
   useEffect(() => {
     // Check initial connection and auto-scan networks on mount
-    void initializeWiFiSetup();
+    void handleScanNetworks();
   }, []);
 
   const renderNetworkItem = ({ item }: { item: WiFiNetwork }) => (
