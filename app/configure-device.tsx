@@ -15,7 +15,7 @@ import {
   saveDeviceConfiguration,
 } from "@/services/device-storage";
 import { StorageKeys, storageService } from "@/lib/storage";
-import { deviceSetupService } from "@/services/device-setup";
+import { deviceSetup } from "@/services/device-setup";
 
 function waitForDevice(timeout = 5_0) {
   return new Promise((resolve) => setTimeout(resolve, timeout));
@@ -55,9 +55,9 @@ export default function ConfigureDeviceScreen() {
     setConfigurationStep(0);
 
     try {
-      // Step 1: Test device connection
+      // Step 1: Check device status
       setConfigurationStep(0);
-      const deviceInfo = await deviceSetupService.getDeviceStatus();
+      const deviceInfo = await deviceSetup.getDeviceStatus();
       if (!deviceInfo.success || !deviceInfo.data) {
         throw new Error("Cannot connect to device");
       }
@@ -65,14 +65,14 @@ export default function ConfigureDeviceScreen() {
 
       // Step 2: Configure GPIO
       setConfigurationStep(1);
-      const gpioResult = await deviceSetupService.configureGPIO();
+      const gpioResult = await deviceSetup.configureGPIO();
       if (!gpioResult.success) throw new Error("GPIO configuration failed");
 
       await waitForDevice();
 
       // Step 3: Configure MQTT
       setConfigurationStep(2);
-      const mqttResult = await deviceSetupService.configureMQTT(
+      const mqttResult = await deviceSetup.configureMQTT(
         {
           host: mqttConfig.host,
           port: parseInt(mqttConfig.port),
@@ -102,7 +102,7 @@ export default function ConfigureDeviceScreen() {
         [
           {
             text: "Setup WiFi",
-            onPress: () => router.push(`/wifi-setup?deviceId=${deviceId}`),
+            onPress: () => router.navigate(`/wifi-setup?deviceId=${deviceId}`),
           },
         ],
       );
@@ -117,48 +117,6 @@ export default function ConfigureDeviceScreen() {
     }
   };
 
-  const renderConfigurationStep = (step: any, index: number) => {
-    const isActive = index === configurationStep;
-    const isCompleted = index < configurationStep;
-    const isUpcoming = index > configurationStep;
-
-    return (
-      <View key={index} style={styles.stepContainer}>
-        <View
-          style={[
-            styles.stepIndicator,
-            isCompleted && styles.stepCompleted,
-            isActive && styles.stepActive,
-          ]}>
-          {isCompleted ? (
-            <Text style={styles.stepCheckmark}>✓</Text>
-          ) : isActive ? (
-            <ActivityIndicator size="small" color="white" />
-          ) : (
-            <Text
-              style={[
-                styles.stepNumber,
-                isUpcoming && styles.stepNumberUpcoming,
-              ]}>
-              {index + 1}
-            </Text>
-          )}
-        </View>
-        <View style={styles.stepContent}>
-          <Text
-            style={[
-              styles.stepTitle,
-              isActive && styles.stepTitleActive,
-              isCompleted && styles.stepTitleCompleted,
-            ]}>
-            {step.title}
-          </Text>
-          <Text style={styles.stepDescription}>{step.description}</Text>
-        </View>
-      </View>
-    );
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -170,9 +128,47 @@ export default function ConfigureDeviceScreen() {
 
         <View style={styles.stepsContainer}>
           <Text style={styles.stepsTitle}>Configuration Steps</Text>
-          {configurationSteps.map((step, index) =>
-            renderConfigurationStep(step, index),
-          )}
+          {configurationSteps.map((step, index) => {
+            const isActive = index === configurationStep;
+            const isCompleted = index < configurationStep;
+            const isUpcoming = index > configurationStep;
+
+            return (
+              <View key={index} style={styles.stepContainer}>
+                <View
+                  style={[
+                    styles.stepIndicator,
+                    isCompleted && styles.stepCompleted,
+                    isActive && styles.stepActive,
+                  ]}>
+                  {isCompleted ? (
+                    <Text style={styles.stepCheckmark}>✓</Text>
+                  ) : isActive ? (
+                    <ActivityIndicator size="small" color="white" />
+                  ) : (
+                    <Text
+                      style={[
+                        styles.stepNumber,
+                        isUpcoming && styles.stepNumberUpcoming,
+                      ]}>
+                      {index + 1}
+                    </Text>
+                  )}
+                </View>
+                <View style={styles.stepContent}>
+                  <Text
+                    style={[
+                      styles.stepTitle,
+                      isActive && styles.stepTitleActive,
+                      isCompleted && styles.stepTitleCompleted,
+                    ]}>
+                    {step.title}
+                  </Text>
+                  <Text style={styles.stepDescription}>{step.description}</Text>
+                </View>
+              </View>
+            );
+          })}
         </View>
 
         {!isConfiguring && configurationStep === -1 && (
@@ -188,7 +184,9 @@ export default function ConfigureDeviceScreen() {
             <Text style={styles.successText}>✓ Configuration Complete!</Text>
             <TouchableOpacity
               style={styles.nextButton}
-              onPress={() => router.push(`/wifi-setup?deviceId=${deviceId}`)}>
+              onPress={() =>
+                router.navigate(`/wifi-setup?deviceId=${deviceId}`)
+              }>
               <Text style={styles.nextButtonText}>Setup WiFi Connection</Text>
             </TouchableOpacity>
           </View>

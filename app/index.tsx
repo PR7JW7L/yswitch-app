@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import {
   Alert,
+  Pressable,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -8,26 +10,19 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { router } from "expo-router";
+import { router, Stack } from "expo-router";
 import { StorageKeys, storageService } from "@/lib/storage";
-import { getConfiguredDevices } from "@/services/device-storage";
-import { deviceOperationsService } from "@/services/device-operations";
+import { deviceControl } from "@/services/device-control";
 import { authService } from "@/services/auth";
+import { useFocusApi } from "@/hooks/useFocusApi";
 
 function HomeScreenContent() {
   const [isLoading, setIsLoading] = useState(false);
-  const [configuredDevices, setConfiguredDevices] = useState<
-    Record<string, any>
-  >({});
-
-  useEffect(() => {
-    setConfiguredDevices(getConfiguredDevices());
-  }, []);
 
   const handleServerUrlSave = async () => {
     setIsLoading(true);
     try {
-      const response = await deviceOperationsService.getMqttConfig();
+      const response = await deviceControl.getMqttConfig();
 
       if (response.success && response.data) {
         storageService.setObject(StorageKeys.MQTT_CONFIG, response.data);
@@ -40,9 +35,31 @@ function HomeScreenContent() {
     }
   };
 
+  const {
+    data: configuredDevices,
+    loading,
+    refetch,
+  } = useFocusApi(() => deviceControl.getDevices().then((r) => r.data), []);
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <Pressable
+              onPress={() =>
+                authService.logout(() => router.navigate("/login"))
+              }>
+              <Text>Logout</Text>
+            </Pressable>
+          ),
+        }}
+      />
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={refetch} />
+        }>
         <View style={styles.section}>
           <TouchableOpacity
             style={[styles.button, styles.primaryButton]}
@@ -53,30 +70,29 @@ function HomeScreenContent() {
             </Text>
           </TouchableOpacity>
         </View>
-
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Device Configuration</Text>
           <TouchableOpacity
             style={[styles.button, styles.secondaryButton]}
-            onPress={() => router.push("/scan-devices")}>
+            onPress={() => router.navigate("/scan-devices")}>
             <Text style={styles.buttonText}>Configure New Device</Text>
           </TouchableOpacity>
         </View>
 
-        {Object.keys(configuredDevices).length > 0 && (
+        {Object.keys(configuredDevices ?? {}).length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Configured Devices</Text>
-            {Object.entries(configuredDevices).map(([deviceId, config]) => (
+            {configuredDevices?.map((device) => (
               <TouchableOpacity
-                key={deviceId}
+                key={device.id}
                 style={styles.deviceItem}
                 onPress={() =>
-                  router.push(`/device-control?deviceId=${deviceId}`)
+                  router.navigate(`/device-control?deviceId=${device.name}`)
                 }>
-                <Text style={styles.deviceId}>{deviceId}</Text>
+                <Text style={styles.deviceId}>{device.name}</Text>
+                <Text>Status: {device.status}</Text>
                 <Text style={styles.deviceDate}>
-                  Configured:{" "}
-                  {new Date(config.configuredAt).toLocaleDateString()}
+                  Updated: {new Date(device.updatedAt).toLocaleString()}
                 </Text>
               </TouchableOpacity>
             ))}

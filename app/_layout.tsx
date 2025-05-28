@@ -39,11 +39,6 @@ export default function RootLayout() {
           options={{ title: "Configure Device" }}
         />
 
-        <Stack.Screen
-          name="mqtt-config"
-          options={{ title: "MQTT Configuration" }}
-        />
-
         <Stack.Screen name="wifi-setup" options={{ title: "WiFi Setup" }} />
 
         <Stack.Screen

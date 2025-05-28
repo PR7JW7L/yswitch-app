@@ -6,14 +6,34 @@ export interface ServerMqttConfig {
   username: string;
   password: string;
 }
+export interface Device {
+  id: number;
+  name: string;
+  userId: number;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
-class DeviceOperationsService {
+class DeviceControlService {
   async getMqttConfig(): Promise<ApiResponse<ServerMqttConfig>> {
     return await handleApiCall(api.get("/mqtt-config"));
   }
 
   async registerDevice(deviceId: string): Promise<ApiResponse<object>> {
     return await handleApiCall(api.post("/device", { deviceId }));
+  }
+
+  async getDevices(): Promise<ApiResponse<Device[]>> {
+    return await handleApiCall(api.get("/device"));
+  }
+
+  async getDevice(deviceId: string): Promise<ApiResponse<Device>> {
+    return await handleApiCall(api.get(`/device/${deviceId}`));
+  }
+
+  async removeDevice(deviceId: string): Promise<ApiResponse<Device>> {
+    return await handleApiCall(api.delete(`/device/${deviceId}`));
   }
 
   async turnDeviceOn(deviceId: string): Promise<ApiResponse<object>> {
@@ -25,4 +45,4 @@ class DeviceOperationsService {
   }
 }
 
-export const deviceOperationsService = new DeviceOperationsService();
+export const deviceControl = new DeviceControlService();

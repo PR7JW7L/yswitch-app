@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -11,107 +11,34 @@ import {
   View,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { getConfiguredDevices } from "@/services/device-storage";
-import { StorageKeys, storageService } from "@/lib/storage";
-import { deviceOperationsService } from "@/services/device-operations";
+import { deviceControl } from "@/services/device-control";
+import { useFocusApi } from "@/hooks/useFocusApi";
 
 export default function DeviceControlScreen() {
   const { deviceId } = useLocalSearchParams<{ deviceId: string }>();
-  const [isDeviceOn, setIsDeviceOn] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [deviceConfig, setDeviceConfig] = useState<any>(null);
-  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-
-  useEffect(() => {
-    if (deviceId) {
-      loadDeviceConfig();
-      // Auto-refresh device status every 30 seconds
-      const interval = setInterval(() => {
-        // In a real app, you would fetch device status from server
-        setLastUpdate(new Date());
-      }, 30000);
-
-      return () => clearInterval(interval);
-    }
-  }, [deviceId]);
-
-  const loadDeviceConfig = () => {
-    const configuredDevices = getConfiguredDevices();
-    if (deviceId && configuredDevices[deviceId]) {
-      setDeviceConfig(configuredDevices[deviceId]);
-    }
-  };
-
+  const { data, loading, refetch } = useFocusApi(
+    () => deviceControl.getDevice(deviceId).then((r) => r.data),
+    [],
+  );
+  const isDeviceOn = data?.status === "ON";
   const handleToggleDevice = async () => {
     if (!deviceId) {
       Alert.alert("Error", "Device ID not found");
       return;
     }
-
     setIsLoading(true);
     try {
-      const result = isDeviceOn
-        ? await deviceOperationsService.turnDeviceOff(deviceId)
-        : await deviceOperationsService.turnDeviceOn(deviceId);
+      const { success, message } = isDeviceOn
+        ? await deviceControl.turnDeviceOff(deviceId)
+        : await deviceControl.turnDeviceOn(deviceId);
 
-      if (result.success) {
-        setIsDeviceOn(!isDeviceOn);
-        setLastUpdate(new Date());
-      } else {
-        Alert.alert("Error", result.message || "Failed to control device");
-      }
-    } catch (error) {
-      Alert.alert("Error", "Failed to communicate with device");
+      if (success) {
+        refetch();
+      } else Alert.alert("Error", message || "Failed to control device");
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleTurnOn = async () => {
-    if (!deviceId || isLoading) return;
-
-    setIsLoading(true);
-    try {
-      const result = await deviceOperationsService.turnDeviceOn(deviceId);
-      console.log({ result });
-      if (result.success) {
-        setIsDeviceOn(true);
-        setLastUpdate(new Date());
-        Alert.alert("Success", "Device turned ON");
-      } else {
-        Alert.alert("Error", result.message || "Failed to turn device on");
-      }
-    } catch (error) {
-      Alert.alert("Error", "Failed to turn device on");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleTurnOff = async () => {
-    if (!deviceId || isLoading) return;
-
-    setIsLoading(true);
-    try {
-      const result = await deviceOperationsService.turnDeviceOff(deviceId);
-      if (result.success) {
-        setIsDeviceOn(false);
-        setLastUpdate(new Date());
-        Alert.alert("Success", "Device turned OFF");
-      } else {
-        Alert.alert("Error", result.message || "Failed to turn device off");
-      }
-    } catch (error) {
-      Alert.alert("Error", "Failed to turn device off");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleRefreshStatus = () => {
-    // In a real app, you would fetch the actual device status
-    setLastUpdate(new Date());
-    Alert.alert("Status Updated", "Device status has been refreshed");
   };
 
   const handleRemoveDevice = () => {
@@ -127,13 +54,13 @@ export default function DeviceControlScreen() {
           text: "Remove",
           style: "destructive",
           onPress: () => {
-            // Remove device from storage
-            const devices = getConfiguredDevices();
-            if (deviceId && devices[deviceId]) {
-              delete devices[deviceId];
-              storageService.setObject(StorageKeys.CONFIGURED_DEVICES, devices);
-            }
-            router.push("/");
+            deviceControl.removeDevice(deviceId).then(({ success }) => {
+              if (success) {
+                router.navigate("/");
+              } else {
+                Alert.alert("Error", "Failed to remove device");
+              }
+            });
           },
         },
       ],
@@ -147,7 +74,7 @@ export default function DeviceControlScreen() {
           <Text style={styles.errorText}>Device ID not found</Text>
           <TouchableOpacity
             style={styles.button}
-            onPress={() => router.push("/")}>
+            onPress={() => router.navigate("/")}>
             <Text style={styles.buttonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
@@ -155,50 +82,46 @@ export default function DeviceControlScreen() {
     );
   }
 
+  if (loading) return <Text>Please wait...</Text>;
+  if (!data) return <Text>Failed to get data</Text>;
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={refetch} />
+        }>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Device Control</Text>
-          <Text style={styles.deviceIdText}>{deviceId}</Text>
-          {lastUpdate && (
+          <Text style={styles.deviceIdText}>{data.name}</Text>
+          {data.updatedAt ? (
             <Text style={styles.lastUpdateText}>
-              Last updated: {lastUpdate.toLocaleTimeString()}
+              Updated: {new Date(data.updatedAt).toLocaleString()}
             </Text>
-          )}
-        </View>
-
-        <View style={styles.statusSection}>
-          <Text style={styles.sectionTitle}>Device Status</Text>
-          <View style={styles.statusContainer}>
-            <View style={styles.statusItem}>
-              <Text style={styles.statusLabel}>Power:</Text>
-              <View style={styles.statusValue}>
-                <View
-                  style={[
-                    styles.statusIndicator,
-                    isDeviceOn ? styles.statusOn : styles.statusOff,
-                  ]}
-                />
-                <Text
-                  style={[
-                    styles.statusText,
-                    isDeviceOn ? styles.statusTextOn : styles.statusTextOff,
-                  ]}>
-                  {isDeviceOn ? "ON" : "OFF"}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.statusItem}>
-              <Text style={styles.statusLabel}>Connection:</Text>
-              <Text style={styles.statusText}>Connected</Text>
-            </View>
-          </View>
+          ) : null}
         </View>
 
         <View style={styles.controlSection}>
           <Text style={styles.sectionTitle}>Device Controls</Text>
+          <View style={styles.statusItem}>
+            <Text style={styles.statusLabel}>Power:</Text>
+            <View style={styles.statusValue}>
+              <View
+                style={[
+                  styles.statusIndicator,
+                  isDeviceOn ? styles.statusOn : styles.statusOff,
+                ]}
+              />
+              <Text
+                style={[
+                  styles.statusText,
+                  isDeviceOn ? styles.statusTextOn : styles.statusTextOff,
+                ]}>
+                {isDeviceOn ? "ON" : "OFF"}
+              </Text>
+            </View>
+          </View>
 
           <View style={styles.toggleContainer}>
             <Text style={styles.toggleLabel}>Power Toggle</Text>
@@ -210,71 +133,9 @@ export default function DeviceControlScreen() {
               thumbColor={isDeviceOn ? "#ffffff" : "#f4f3f4"}
             />
           </View>
-
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={[styles.controlButton, styles.onButton]}
-              onPress={handleTurnOn}
-              disabled={isLoading}>
-              {isLoading ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <Text style={styles.buttonText}>Turn ON</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.controlButton, styles.offButton]}
-              onPress={handleTurnOff}
-              disabled={isLoading}>
-              {isLoading ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <Text style={styles.buttonText}>Turn OFF</Text>
-              )}
-            </TouchableOpacity>
-          </View>
         </View>
 
-        {deviceConfig && (
-          <View style={styles.infoSection}>
-            <Text style={styles.sectionTitle}>Device Information</Text>
-            <View style={styles.infoContainer}>
-              <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Name:</Text>
-                <Text style={styles.infoValue}>
-                  {deviceConfig.name || "Unknown"}
-                </Text>
-              </View>
-              <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Type:</Text>
-                <Text style={styles.infoValue}>
-                  {deviceConfig.type || "Generic Device"}
-                </Text>
-              </View>
-              <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Location:</Text>
-                <Text style={styles.infoValue}>
-                  {deviceConfig.location || "Not specified"}
-                </Text>
-              </View>
-              <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Model:</Text>
-                <Text style={styles.infoValue}>
-                  {deviceConfig.model || "N/A"}
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
-
         <View style={styles.actionSection}>
-          <TouchableOpacity
-            style={styles.refreshButton}
-            onPress={handleRefreshStatus}>
-            <Text style={styles.refreshButtonText}>Refresh Status</Text>
-          </TouchableOpacity>
-
           <TouchableOpacity
             style={styles.removeButton}
             onPress={handleRemoveDevice}>

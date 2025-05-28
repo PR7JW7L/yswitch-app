@@ -50,7 +50,7 @@ export default function ScanDevicesScreen() {
               {
                 text: "Configure Device",
                 onPress: () =>
-                  router.push(`/configure-device?ssid=${network.SSID}`),
+                  router.navigate(`/configure-device?ssid=${network.SSID}`),
               },
             ],
           );
@@ -68,25 +68,28 @@ export default function ScanDevicesScreen() {
     [connectToNetwork],
   );
 
+  const renderNetworkItem = useCallback(
+    ({ item }: { item: WiFiNetwork }) => (
+      <TouchableOpacity
+        style={styles.networkItem}
+        onPress={() => handleConnectToDevice(item)}
+        disabled={isConnecting}>
+        <View style={styles.networkInfo}>
+          <Text style={styles.networkName}>{item.SSID}</Text>
+          <Text style={styles.networkDetails}>
+            Signal: {item.level}dBm | {item.capabilities}
+          </Text>
+        </View>
+        {isConnecting && <ActivityIndicator size="small" color="#2563eb" />}
+      </TouchableOpacity>
+    ),
+    [handleConnectToDevice, isConnecting],
+  );
+
   useEffect(() => {
     // Auto-scan on mount
     void handleScan();
   }, [handleScan]);
-
-  const renderNetworkItem = ({ item }: { item: WiFiNetwork }) => (
-    <TouchableOpacity
-      style={styles.networkItem}
-      onPress={() => handleConnectToDevice(item)}
-      disabled={isConnecting}>
-      <View style={styles.networkInfo}>
-        <Text style={styles.networkName}>{item.SSID}</Text>
-        <Text style={styles.networkDetails}>
-          Signal: {item.level}dBm | {item.capabilities}
-        </Text>
-      </View>
-      {isConnecting && <ActivityIndicator size="small" color="#2563eb" />}
-    </TouchableOpacity>
-  );
 
   return (
     <SafeAreaView style={styles.container}>

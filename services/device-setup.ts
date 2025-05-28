@@ -59,4 +59,4 @@ class DeviceSetupService {
   }
 }
 
-export const deviceSetupService = new DeviceSetupService();
+export const deviceSetup = new DeviceSetupService();

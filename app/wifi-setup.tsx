@@ -17,11 +17,11 @@ import { useWiFi, WiFiNetwork } from "@/hooks/useWifi";
 import { isValidPassword, isValidSSID } from "@/services/device-storage";
 import { StorageKeys, storageService } from "@/lib/storage";
 import { PasswordInput } from "@/components/PasswordInput";
-import { deviceSetupService } from "@/services/device-setup";
-import { deviceOperationsService } from "@/services/device-operations";
+import { deviceSetup } from "@/services/device-setup";
+import { deviceControl } from "@/services/device-control";
 
 export default function WiFiSetupScreen() {
-  const { deviceId = "device-mb0p2az6-29g3ky" } = useLocalSearchParams<{
+  const { deviceId } = useLocalSearchParams<{
     deviceId: string;
   }>();
   const { networks, isScanning, scanNetworks } = useWiFi();
@@ -114,10 +114,7 @@ export default function WiFiSetupScreen() {
     setIsConnecting(true);
     try {
       // Send the HOME WiFi credentials to the device while connected to device hotspot
-      const result = await deviceSetupService.configureWifi(
-        homeWifiSSID,
-        password,
-      );
+      const result = await deviceSetup.configureWifi(homeWifiSSID, password);
 
       if (result.success) {
         setConfigurationSent(true);
@@ -231,7 +228,7 @@ export default function WiFiSetupScreen() {
 
     setIsRegistering(true);
     try {
-      const result = await deviceOperationsService.registerDevice(deviceId);
+      const result = await deviceControl.registerDevice(deviceId);
       if (result.success) {
         storageService.setObject(StorageKeys.WIFI_CREDENTIALS, {
           ssid: selectedNetwork?.SSID || manualSSID,
@@ -245,11 +242,11 @@ export default function WiFiSetupScreen() {
             {
               text: "Control Device",
               onPress: () =>
-                router.push(`/device-control?deviceId=${deviceId}`),
+                router.navigate(`/device-control?deviceId=${deviceId}`),
             },
             {
               text: "Back to Home",
-              onPress: () => router.push("/"),
+              onPress: () => router.navigate("/"),
             },
           ],
         );
