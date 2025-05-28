@@ -42,7 +42,15 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "react-native-wifi-reborn"
+      "react-native-wifi-reborn",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
